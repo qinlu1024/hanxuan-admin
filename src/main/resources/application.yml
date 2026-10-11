@@ -1,0 +1,99 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: hanxuan-admin
+  profiles:
+    active: dev
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:hanxuan_admin}?useUnicode=true&characterEncoding=utf8&serverTimezone=GMT%2B8
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+
+# 文件存储配置
+file:
+  # 存储类型：local-本地磁盘
+  storage-type: local
+  # 本地存储路径（生产环境通过环境变量 FILE_LOCAL_PATH 覆盖）
+  local-path: ${FILE_LOCAL_PATH:./upload}
+  # 文件访问前缀（下载用）
+  url-prefix: /api/file/download
+
+# MyBatis-Plus 配置
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.hanxuan.admin.system.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: assign_id
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# Sa-Token 配置
+sa-token:
+  # token 名称（同时也是 cookie 名称）
+  token-name: Authorization
+  # token 绝对有效期（单位：秒），7 天。自登录起最长保留时间，即使持续活跃到期也需重新登录，-1 代表永久有效
+  timeout: 604800
+  # token 最低活跃频率（单位：秒），1800 秒=30 分钟。距离上次请求超过该时长未操作则被冻结，需重新登录；
+  # 每次请求由 Sa-Token 拦截器自动刷新活跃时间，实现"活跃用户无感续期"的滑动会话，-1 代表永不冻结
+  active-timeout: 1800
+  # 校验登录时自动续签活跃时间（默认 true），保持开启以支持滑动会话
+  auto-renew: true
+  # 是否允许同一账号并发登录 (为true时允许一起登录, 为false时新登录挤掉旧登录)
+  is-concurrent: true
+  # 在多人登录同一账号时，是否共用一个 token (为true时所有登录共用一个token, 为false时每次登录新建一个token)
+  is-share: false
+  # token 风格（默认可取值：uuid、simple-uuid、random-32、random-64、random-128、tik）
+  token-style: uuid
+  # token 前缀（如 Bearer），开启后前端传 Authorization: Bearer xxx
+  token-prefix: Bearer
+  # 是否输出操作日志
+  is-log: true
+  # JWT 密钥（优先从环境变量 HANXUAN_JWT_SECRET 读取，生产环境必须配置！）
+  jwt-secret-key: ${HANXUAN_JWT_SECRET:hX@9kL#mP2qR7vT$wY%zA3dF6gH&jN8s}
+
+# Knife4j 配置
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+  group-configs:
+    - group: 'default'
+      paths-to-match: '/**'
+      packages-to-scan: com.hanxuan.admin.system.controller
+
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+    enable-document-manage: true
+    enable-version: true
+
+# 日志配置
+logging:
+  level:
+    com.hanxuan.admin: debug
+    org.springframework: warn
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n'

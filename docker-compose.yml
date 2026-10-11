@@ -1,0 +1,88 @@
+name: hanxuan
+
+# 晗煊后台管理系统 —— 全链路编排
+# 一键启动：docker compose up -d --build
+# 三服务：postgres（数据库） / backend（Spring Boot） / frontend（nginx 静态+反代）
+
+services:
+  postgres:
+    image: postgres:16-bookworm
+    container_name: hanxuan-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-hanxuan_admin}
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      TZ: Asia/Shanghai
+    ports:
+      # 仅绑定宿主机回环：外部网络不可直连数据库，容器内网仍可正常访问
+      - "127.0.0.1:5432:5432"
+    volumes:
+      # 固定命名卷：已存在则复用（保留历史数据），不存在则创建并由 init.sql 初始化
+      - hanxuan-postgres-data:/var/lib/postgresql/data
+      # 仅当数据目录为空（首次初始化）时自动执行建表+种子数据
+      - ./src/main/resources/sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_NAME:-hanxuan_admin}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - hanxuan-net
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: hanxuan-admin-backend:1.0
+    container_name: hanxuan-admin-backend
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-hanxuan_admin}
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      # JWT 密钥：从 .env 注入，生产环境必须覆盖内置默认值
+      HANXUAN_JWT_SECRET: ${HANXUAN_JWT_SECRET}
+      FILE_LOCAL_PATH: /app/upload
+      TZ: Asia/Shanghai
+    ports:
+      # 仅绑定宿主机回环：外部统一走前端 nginx(:80) 反代，不直接暴露后端
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - hanxuan-upload-data:/app/upload
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - hanxuan-net
+
+  frontend:
+    build:
+      context: ../hanxuan-admin-web
+      dockerfile: Dockerfile
+    image: hanxuan-admin-web:2.0
+    container_name: hanxuan-admin-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # 自签名证书：宿主机 certs 目录只读挂载；换证书后无需重建镜像
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - backend
+    networks:
+      - hanxuan-net
+
+volumes:
+  hanxuan-postgres-data:
+    name: hanxuan-postgres-data
+  hanxuan-upload-data:
+    name: hanxuan-upload-data
+
+networks:
+  hanxuan-net:
+    name: hanxuan-net
+    driver: bridge

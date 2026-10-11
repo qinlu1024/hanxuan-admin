@@ -1,6 +1,14 @@
 # Compiled class file
 *.class
 
+# Maven 构建输出
+target/
+
+# IDE / 编辑器
+.vscode/
+.idea/
+*.iml
+
 # Log file
 *.log
 
@@ -22,3 +30,11 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+# 环境密钥与本地数据（禁止提交）
+.env
+upload/
+logs/
+
+# HTTPS 证书与私钥（自签名，禁止提交）
+certs/
